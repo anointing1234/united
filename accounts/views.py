@@ -57,6 +57,11 @@ from django.contrib.auth import update_session_auth_hash
 logger = logging.getLogger(__name__)
 
 
+import threading
+
+def async_send_email(msg):
+    """Send EmailMultiAlternatives in a background thread."""
+    threading.Thread(target=msg.send, kwargs={"fail_silently": True}, daemon=True).start()
 
 
 
@@ -262,7 +267,7 @@ def register(request):
                     img.add_header('Content-Disposition', 'inline', filename='logo.png')
                     msg.attach(img)
 
-            msg.send(fail_silently=False)
+            async_send_email(msg)
 
             return JsonResponse({
                 'success': True,
@@ -639,7 +644,7 @@ def local_transfer_views(request):
                         img.add_header('Content-Disposition', 'inline', filename='logo_white.png')
                         msg.attach(img)
 
-                msg.send(fail_silently=False)
+                async_send_email(msg)
                 logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
@@ -846,7 +851,7 @@ def Transfer_views(request):  # Renamed to match URL pattern
                         img.add_header('Content-Disposition', 'inline', filename='logo.png')
                         msg.attach(img)
 
-                msg.send(fail_silently=False)
+                async_send_email(msg)
                 logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
