@@ -610,60 +610,48 @@ $(document).ready(function () {
   }
 
   function validateCode(code, codeType, formData) {
-    let csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
-    Swal.fire({
-      title: 'Validating Code...',
-      text: 'Please wait while we verify your code.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-      customClass: {
-        popup: 'custom-swal-popup',
-        confirmButton: 'custom-swal-button',
-        cancelButton: 'custom-swal-button'
-      }
-    });
+  let csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
+  // Normalize code client-side too
+  code = code.trim().replace(/\s+/g, '');
 
-    $.ajax({
-      url: '{% url "validate_code" %}',
-      method: 'POST',
-      data: {
-        csrfmiddlewaretoken: csrfToken,
-        code: code,
-        code_type: codeType
-      },
-      success: function(response) {
-        Swal.close();
-        if (response.success) {
-          if (codeType === 'tac_code') {
-            askForCode('Enter Tax Code', 'tax_code', formData);
-          } else if (codeType === 'tax_code') {
-            askForCode('Enter IMF Code', 'imf_code', formData);
-          } else if (codeType === 'imf_code') {
-            processTransfer(formData);
-          }
-        } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid Code',
-            text: response.message || `Invalid ${codeType.replace('_', ' ').toUpperCase()}`,
-            customClass: { popup: 'custom-swal-popup', confirmButton: 'custom-swal-button' }
-          });
-        }
-      },
-      error: function(xhr) {
-        Swal.close();
-        let msg = 'Error validating code. Please try again.';
-        if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-        else try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-        Swal.fire({ 
-          icon: 'error', 
-          title: 'Error', 
-          text: msg,
+  Swal.fire({
+    title: 'Validating Code...',
+    text: 'Please wait while we verify your code.',
+    allowOutsideClick: false,
+    customClass: { popup: 'custom-swal-popup', confirmButton: 'custom-swal-button' },
+    didOpen: () => Swal.showLoading()
+  });
+
+  $.ajax({
+    url: '{% url "validate_code" %}',
+    method: 'POST',
+    data: { csrfmiddlewaretoken: csrfToken, code: code, code_type: codeType },
+    success: function(response) {
+      Swal.close();
+      if (response.success) {
+        if (codeType === 'tac_code') askForCode('Enter Tax Code', 'tax_code', formData);
+        else if (codeType === 'tax_code') askForCode('Enter IMF Code', 'imf_code', formData);
+        else if (codeType === 'imf_code') processTransfer(formData);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Code',
+          text: response.message || `Invalid ${codeType.replace('_', ' ').toUpperCase()}`,
           customClass: { popup: 'custom-swal-popup', confirmButton: 'custom-swal-button' }
         });
       }
-    });
-  }
+    },
+    error: function(xhr) {
+      Swal.close();
+      let msg = 'Error validating code. Please try again.';
+      if (xhr.responseJSON?.message) msg = xhr.responseJSON.message;
+      Swal.fire({
+        icon: 'error', title: 'Error', text: msg,
+        customClass: { popup: 'custom-swal-popup', confirmButton: 'custom-swal-button' }
+      });
+    }
+  });
+}
 
   function processTransfer(formData) {
     $('#account_name, #account_number, #bank_name, #routing_number, #bank_address, #swift_code')

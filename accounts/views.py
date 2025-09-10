@@ -431,23 +431,35 @@ def send_transfer_code(request):
         'message': 'Invalid request'
     }, status=400)
 
+
+
 @login_required
 def validate_code(request):
     if request.method == 'POST':
-        code = request.POST.get('code')
-        code_type = request.POST.get('code_type')
-        transfer_code = TransferCode.objects.filter(user=request.user, used=False, expires_at__gt=timezone.now()).first()
+        # Normalize inputs
+        code = request.POST.get('code', '').strip().replace(" ", "")
+        code_type = request.POST.get('code_type', '').strip()
+
+        transfer_code = TransferCode.objects.filter(
+            user=request.user,
+            used=False,
+            expires_at__gt=timezone.now()
+        ).first()
+
         if not transfer_code:
             return JsonResponse({'success': False, 'message': 'No valid transfer codes found'}, status=400)
+
+        # Compare after normalization
         if code_type == 'tac_code' and code == transfer_code.tac_code:
             return JsonResponse({'success': True})
         if code_type == 'tax_code' and code == transfer_code.tax_code:
             return JsonResponse({'success': True})
         if code_type == 'imf_code' and code == transfer_code.imf_code:
             return JsonResponse({'success': True})
-        return JsonResponse({'success': False, 'message': f'Invalid {code_type}'}, status=400)
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
+        return JsonResponse({'success': False, 'message': f'Invalid {code_type}'}, status=400)
+
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 
 
