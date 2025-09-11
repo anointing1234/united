@@ -56,7 +56,11 @@
 <body>
   <div class="container">
     <div class="header">
-      <img src="{% static 'images/logo.png' %}" alt="Bank Logo">
+    {% if is_email %}
+    <img src="cid:logo.png" alt="Bank Logo" width="150">
+{% else %}
+    <img src="{% static 'images/logo.png' %}" alt="Bank Logo" width="150">
+{% endif %}
       <h2>Transaction Receipt</h2>
       <p>
         {% if region == "international" %}
