@@ -62,7 +62,7 @@
     ],
     "contactPoint": {
       "@type": "ContactPoint",
-      "telephone": "+1-800-123-4567",
+      "telephone": "+12567491510",
       "contactType": "customer service",
       "areaServed": "US",
       "availableLanguage": ["English", "Spanish"]
@@ -122,7 +122,7 @@
 <div class="container">
 <div class="pearo-responsive-menu">
 <div class="logo">
-<a href="/">
+<a href="{% url 'home' %}">
 <img src="{% static 'images/logo.png' %}" width="200" alt="logo"> <bold style="color:#002e5b; font-size: x-large; font-weight: bolder;"></bold>
 </a>
 </div>
@@ -135,7 +135,7 @@
 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
   <span class="navbar-toggler-icon"></span>
 </button>
-<a class="navbar-brand" href="/">
+<a class="navbar-brand" href="{% url 'home' %}">
 <img src="{% static 'images/logo.png' %}" width="220px" alt="logo"><bold style="color:darkblue; font-size: larger; font-weight: bolder;"></bold>
 </a>
 <div class="collapse navbar-collapse mean-menu" id="navbarSupportedContent">
@@ -181,27 +181,14 @@
       </div>
     </div>
 
-    <!-- ✅ Instagram Feed -->
-    <div class="sidebar-instagram-feed">
-      <h2>Instagram</h2>
-      <ul>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/1.jpg' %}" alt="BankUnited community event"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/2.jpg' %}" alt="BankUnited financial tips"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/3.jpg' %}" alt="BankUnited savings account promo"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/4.jpg' %}" alt="BankUnited staff helping customers"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/5.jpg' %}" alt="BankUnited branch showcase"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/6.jpg' %}" alt="BankUnited financial education"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/7.jpg' %}" alt="BankUnited customer success"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="{% static 'assets/img/blog-image/8.jpg' %}" alt="BankUnited digital banking services"></a></li>
-      </ul>
-    </div>
+    
 
     <!-- ✅ Contact Section -->
     <div class="sidebar-contact-area">
       <div class="sidebar-contact-info">
         <div class="contact-info-content">
           <h2>
-            <a href="https://wa.me/13648883417" target="_blank">+1 (364) 888-3417</a>
+            <a href="https://wa.me/+12567491510" target="_blank">+12567491510</a>
             <span>OR</span>
             <a href="mailto:info@bnunited.com">info@bnunited.com</a>
           </h2>
@@ -773,7 +760,7 @@ We aim to support those businesses with personalized lending.
 <i class="flaticon-home-insurance"></i>
 </div>
 <h3>Headquarter Office:</h3>
-<p>507 Rocky Point Road, Sans Souci 2219 AU.</p>
+<p>2429 Broad Street, Suite 100, Birmingham<br> AL 35222.</p>
 </div>
 </div>
 <div class="col-lg-12 col-md-6 col-sm-6">
@@ -782,7 +769,7 @@ We aim to support those businesses with personalized lending.
 <i class="flaticon-home-insurance"></i>
 </div>
 <h3>Branch Office:</h3>
-<p>12 Gill Street, Suite 2600, Woburn MA 01801.</p>
+<p>2429 Broad Street, Suite 100, Birmingham<br> AL 35222.</p>
 </div>
 </div>
 </div>
@@ -796,7 +783,7 @@ We aim to support those businesses with personalized lending.
 <i class="flaticon-call"></i>
 </div>
 <span>Talk to our Agent</span>
-<a href="tel:+13648883417">+1(364)-888-3417</a>
+<a href="tel:+12567491510">+12567491510</a>
 </li>
 <li>
 <cite>Or</cite>
@@ -1051,7 +1038,7 @@ Backed by the strength of the nation’s #1 rated bank based on financial perfor
     <p>At BankUnited, we strive to build on our community bank heritage by combining high ethical standards with innovative technologies to deliver truly exceptional service to our clients and communities.</p>
     </div>
     <ul class="social">
-    <li><a href="https://wa.me/+15855086470"><i class="fab fa-whatsapp"></i></a></li>
+    <li><a href="https://wa.me/+12567491510"><i class="fab fa-whatsapp"></i></a></li>
     </ul>
     </div>
     </div>
@@ -1059,11 +1046,11 @@ Backed by the strength of the nation’s #1 rated bank based on financial perfor
     <div class="single-footer-widget">
     <h3>Quick Links</h3>
     <ul class="footer-quick-links">
-    <li><a href="/index_2/">Home</a></li>
-    <li><a href="/about/">About Us</a></li>
-    <li><a href="#">Insurance</a></li>
+    <li><a href="{% url 'home' %}">Home</a></li>
+    <li><a href="{% url 'about' %}">About Us</a></li>
+    <li><a href="{% url 'home_insurance' %}">Insurance</a></li>
     <li><a href="{% url 'services' %}">Services</a></li>
-    <li><a href="/contact/">Contact Us</a></li>
+    <li><a href="{% url 'contact' %}">Contact Us</a></li>
     </ul>
     </div>
     </div>
@@ -1071,9 +1058,9 @@ Backed by the strength of the nation’s #1 rated bank based on financial perfor
     <div class="single-footer-widget">
     <h3>Contact Info</h3>
     <ul class="footer-contact-info">
-    <li><span>Office: </span> 12 Gill Street, Suite 2600, Woburn<br> MA 01801.</li>
+  <li><span>Office: </span> 2429 Broad Street, Suite 100, Birmingham<br> AL 35222.</li>
     <li><span>Email:</span> <a href="mailto:info@bnunited.com"><span class="__cf_email__" data-cfemail="">info@bnunited.com</span></a></li>
-    <li><span>Phone:</span> <a href="https://wa.me/+13648883417">+1(364)-888-3417</a></li>
+    <li><span>Phone:</span> <a href="https://wa.me/+12567491510">+12567491510</a></li>
     </ul>
     </div>
 

@@ -61,7 +61,7 @@
     ],
     "contactPoint": {
       "@type": "ContactPoint",
-      "telephone": "+1-800-123-4567",
+      "telephone": "+12567491510",
       "contactType": "customer service",
       "areaServed": "US",
       "availableLanguage": ["English", "Spanish"]
@@ -106,7 +106,7 @@
 <i class="flaticon-call"></i>
 </div> -->
 <!-- <span>WhatsApp or Call us:</span>
-<a href="https://wa.me/+15855086470">+1(585)-508-6470</a> -->
+<a href="https://wa.me/+12567491510">+1(585)-508-6470</a> -->
 
 </li>
 <li>
@@ -126,7 +126,7 @@
 <div class="container">
 <div class="pearo-responsive-menu">
 <div class="logo">
-<a href="/">
+<a href="{% url 'home' %}">
 <img src="/static/images/logo.png" width="200" alt="logo"> <bold style="color:#002e5b; font-size: x-large; font-weight: bolder;"></bold>
 </a>
 </div>
@@ -139,24 +139,24 @@
 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
   <span class="navbar-toggler-icon"></span>
 </button>
-<a class="navbar-brand" href="/">
+<a class="navbar-brand" href="{% url 'home' %}">
 <img src="/static/images/logo.png" width="220px" alt="logo"><bold style="color:darkblue; font-size: larger; font-weight: bolder;"></bold>
 </a>
 <div class="collapse navbar-collapse mean-menu" id="navbarSupportedContent">
 <ul class="navbar-nav">
-<li class="nav-item"><a href="/" class="nav-link ">Home <i class=""></i></a></li>
-<li class="nav-item"><a href="/about/" class="nav-link active">About Us</a></li>
-<li class="nav-item"><a href="/services/" class="nav-link">Services</a></li>
+<li class="nav-item"><a href="{% url 'home' %}" class="nav-link ">Home <i class=""></i></a></li>
+<li class="nav-item"><a href="{% url 'about' %}" class="nav-link active">About Us</a></li>
+<li class="nav-item"><a href="{% url 'services' %}" class="nav-link">Services</a></li>
 <li class="nav-item"><a href="#" class="nav-link">Insurance <i class="flaticon-down-arrow"></i></a>
 <ul class="dropdown-menu">
-<li class="nav-item"><a href="/home_insurance/" class="nav-link">Home Insurance</a></li>
-<li class="nav-item"><a href="/business_insurance/" class="nav-link">Business Insurance</a></li>
-<li class="nav-item"><a href="/health_insurance/" class="nav-link">Health Insurance</a></li>
+<li class="nav-item"><a href="{% url 'home_insurance' %}" class="nav-link">Home Insurance</a></li>
+<li class="nav-item"><a href="{% url 'business_insurance' %}" class="nav-link">Business Insurance</a></li>
+<li class="nav-item"><a href="{% url 'health_insurance' %}" class="nav-link">Health Insurance</a></li>
 </ul>
 </li>
 
-<li class="nav-item"><a href="/news/" class="nav-link">News <i class=""></i></a></li>
-<li class="nav-item"><a href="/contact/" class="nav-link">Contact Us</a></li>
+<li class="nav-item"><a href="{% url 'news' %}" class="nav-link">News <i class=""></i></a></li>
+<li class="nav-item"><a href="{% url 'contact' %}" class="nav-link">Contact Us</a></li>
 </ul>
 <div class="others-option">
 
@@ -186,27 +186,14 @@
       </div>
     </div>
 
-    <!-- ✅ Instagram Feed -->
-    <div class="sidebar-instagram-feed">
-      <h2>Instagram</h2>
-      <ul>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/1.jpg" alt="BankUnited community event"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/2.jpg" alt="BankUnited financial tips"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/3.jpg" alt="BankUnited savings account promo"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/4.jpg" alt="BankUnited staff helping customers"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/5.jpg" alt="BankUnited branch showcase"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/6.jpg" alt="BankUnited financial education"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/7.jpg" alt="BankUnited customer success"></a></li>
-        <li><a href="https://www.instagram.com/bankunited" target="_blank"><img src="/static/assets/img/blog-image/8.jpg" alt="BankUnited digital banking services"></a></li>
-      </ul>
-    </div>
+   
 
     <!-- ✅ Contact Section -->
     <div class="sidebar-contact-area">
       <div class="sidebar-contact-info">
         <div class="contact-info-content">
           <h2>
-            <a href="https://wa.me/13648883417" target="_blank">+1 (364) 888-3417</a>
+            <a href="https://wa.me/+12567491510" target="_blank">+12567491510</a>
             <span>OR</span>
             <a href="mailto:info@bnunited.com">info@bnunited.com</a>
           </h2>
@@ -397,7 +384,7 @@
     <p>At BankUnited, we strive to build on our community bank heritage by combining high ethical standards with innovative technologies to deliver truly exceptional service to our clients and communities.</p>
     </div>
     <ul class="social">
-    <li><a href="https://wa.me/+15855086470"><i class="fab fa-whatsapp"></i></a></li>
+    <li><a href="https://wa.me/+12567491510"><i class="fab fa-whatsapp"></i></a></li>
     </ul>
     </div>
     </div>
@@ -405,11 +392,11 @@
     <div class="single-footer-widget">
     <h3>Quick Links</h3>
     <ul class="footer-quick-links">
-    <li><a href="/index_2/">Home</a></li>
-    <li><a href="/about/">About Us</a></li>
+    <li><a href="{% url 'home' %}">Home</a></li>
+    <li><a href="{% url 'about' %}">About Us</a></li>
     <li><a href="#">Insurance</a></li>
-    <li><a href="/services/">Services</a></li>
-    <li><a href="/contact/">Contact Us</a></li>
+    <li><a href="{% url 'services' %}">Services</a></li>
+    <li><a href="{% url 'contact' %}">Contact Us</a></li>
     </ul>
     </div>
     </div>
@@ -417,9 +404,10 @@
     <div class="single-footer-widget">
     <h3>Contact Info</h3>
     <ul class="footer-contact-info">
-    <li><span>Office: </span> 12 Gill Street, Suite 2600, Woburn<br> MA 01801.</li>
+    <li><span>Office: </span> 2429 Broad Street, Suite 100, Birmingham
+AL 35222.</li>
     <li><span>Email:</span> <a href="mailto:info@bnunited.com"><span class="__cf_email__" data-cfemail="">info@bnunited.com</span></a></li>
-    <li><span>Phone:</span> <a href="https://wa.me/+13648883417">+1(364)-888-3417</a></li>
+    <li><span>Phone:</span> <a href="https://wa.me/++12567491510">+12567491510</a></li>
     </ul>
     </div>
 
