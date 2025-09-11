@@ -191,7 +191,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # EMAIL_USE_SSL = True
 # EMAIL_HOST_USER = env('EMAIL_HOST_USER')  
 # EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-# DEFAULT_FROM_EMAIL = 'info@bnunited.com'
+DEFAULT_FROM_EMAIL = 'info@bnunited.com'
 
 
 
