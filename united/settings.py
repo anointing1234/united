@@ -15,14 +15,6 @@ import os
 import environ
 
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-
-if not RESEND_API_KEY:
-    print("❌ RESEND_API_KEY not found in environment!")
-else:
-    print("✅ RESEND_API_KEY loaded successfully")
-
-
 
 from django.templatetags.static import static
 from django.urls import reverse_lazy
@@ -40,6 +32,16 @@ environ.Env.read_env(os.path.join(BASE_DIR,'file.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-z*ugggvikdiugnz!hzzq99of#&y)w7(1#6i)wv-k#b$df$c4o&'
+
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+
+if not RESEND_API_KEY:
+    print("❌ RESEND_API_KEY not found in environment!")
+else:
+    print("✅ RESEND_API_KEY loaded successfully")
+
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
