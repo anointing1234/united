@@ -266,24 +266,26 @@ def register(request):
 
             # Send email asynchronously using Resend
             def async_send_resend_email(to, subject, html_body):
-              
+            
                 resend.api_key = os.getenv("RESEND_API_KEY")
-
+            
                 def send_email():
                     try:
-                        resend.Emails.send(
-                            from_email="info@bnunited.com",  # verified domain
-                            to=[to],
-                            subject=subject,
-                            html=html_body
-                        )
+                        params = {
+                            "from": "Bankunited <info@bnunited.com>",  # ✅ use verified domain with display name
+                            "to": [to],
+                            "subject": subject,
+                            "html": html_body,
+                        }
+                        resend.Emails.send(params)  # ✅ pass as dictionary
                     except Exception as e:
                         logging.error(f"Resend email failed: {e}")
-
+            
                 threading.Thread(target=send_email, daemon=True).start()
-
+            
             # Trigger email
             async_send_resend_email(user.email, email_subject, email_body)
+
 
             return JsonResponse({
                 'success': True,
@@ -478,35 +480,35 @@ def validate_code(request):
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
-
 # Utility function to send email via Resend asynchronously
 def async_send_resend_email(msg):
     """
     msg: EmailMultiAlternatives object with attachments already added
     """
+    from email import message_from_bytes
+
     resend.api_key = os.getenv("RESEND_API_KEY")
 
     def send_email():
         try:
-            # Convert EmailMultiAlternatives to raw HTML + attachments for Resend
-            from email import message_from_bytes
+            # Convert EmailMultiAlternatives to raw HTML
             raw_msg = msg.message().as_bytes()
             parsed_msg = message_from_bytes(raw_msg)
 
-            # Extract plain text and html parts
             html_body = ""
             for part in parsed_msg.walk():
-                content_type = part.get_content_type()
-                if content_type == "text/html":
+                if part.get_content_type() == "text/html":
                     html_body = part.get_payload(decode=True).decode()
 
-            # Send via Resend
-            resend.Emails.send(
-                from_email=msg.from_email,
-                to=msg.to,
-                subject=msg.subject,
-                html=html_body
-            )
+            # ✅ Prepare params for Resend
+            params = {
+                "from": f"Bankunited <{msg.from_email}>",  # must use "from"
+                "to": msg.to,
+                "subject": msg.subject,
+                "html": html_body,
+            }
+
+            resend.Emails.send(params)  # ✅ pass dictionary
         except Exception as e:
             logging.error(f"Resend email failed: {e}")
 
