@@ -54,6 +54,8 @@ ALLOWED_HOSTS = ["bnunited.com","www.bnunited.com"]
 # # Application definition
 AUTH_USER_MODEL = 'accounts.Account'
 
+LOGIN_URL = '/Accounts/login/'
+
 INSTALLED_APPS = [
     "unfold",
     "unfold.contrib.filters",
@@ -193,7 +195,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # EMAIL_USE_SSL = True
 # EMAIL_HOST_USER = env('EMAIL_HOST_USER')  
 # EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-# DEFAULT_FROM_EMAIL = 'info@bnunited.com'
+DEFAULT_FROM_EMAIL = 'info@bnunited.com'
 
 
 

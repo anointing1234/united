@@ -73,7 +73,7 @@ def signup_view(request):
 
 
 
-
+@login_required
 def dashboard(request):
     # Recent 10 transactions
     transactions = Transaction.objects.filter(user=request.user).order_by('-transaction_date')[:10]
@@ -139,10 +139,13 @@ def dashboard(request):
     }
     return render(request, 'Dashboard/index.html', context)
 
+
+@login_required
 def deposit_view(request):
     deposits = Deposit.objects.filter(user=request.user).order_by('-date')
     return render(request,'Dashboard/fianaces/deposit.html',{'deposits':deposits})
 
+@login_required
 def local_transfer_view(request):
     beneficiaries = Beneficiary.objects.filter(user=request.user)
     context = {
@@ -150,6 +153,8 @@ def local_transfer_view(request):
     }
     return render(request,'Dashboard/fianaces/local_transfer.html',context)    
 
+
+@login_required
 def international_transfer_view(request):
     beneficiaries = Beneficiary.objects.filter(user=request.user)
     context = {
@@ -158,17 +163,25 @@ def international_transfer_view(request):
     return render(request,'Dashboard/fianaces/international_transfer.html',context)
 
 
+
+@login_required
 def loans_views(request):
     return render(request,'Dashboard/fianaces/loans.html',)
 
+
+@login_required
 def grants(request):
     loans = LoanRequest.objects.filter(user=request.user).order_by('-date')
     return render(request,'Dashboard/fianaces/grants.html',{'loans': loans})
 
+
+@login_required
 def profile_view(request):
     return render(request,'Dashboard/profile.html')
 
 
+
+@login_required
 def bank_statement(request):
     transactions = Transaction.objects.filter(user=request.user).order_by('-transaction_date')
 
@@ -176,6 +189,88 @@ def bank_statement(request):
         'transactions': transactions,
     }
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
+
+def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=None, from_email="Bankunited <info@bnunited.com>"):
+    """
+    Send an email via Resend asynchronously.
+    - If `msg` is provided (EmailMultiAlternatives), extract HTML content and use its recipient and subject.
+    - If `to_email`, `subject`, and `html_body` are provided, use them directly.
+    - `from_email` defaults to a verified sender but can be overridden by `msg.from_email`.
+    """
+    resend.api_key = os.getenv("RESEND_API_KEY")
+    if not resend.api_key:
+        logger.error("RESEND_API_KEY is not set")
+        return
+
+    def clean_email(email):
+        """Extract a plain email address from a string like 'Name <email@example.com>' or 'email@example.com'."""
+        if not email:
+            logger.error("No email address provided for 'from' field")
+            return None
+        # Match email address in the format 'Name <email@example.com>' or 'email@example.com'
+        match = re.match(r'^(?:.*?<)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?$', email)
+        if match:
+            return match.group(1)
+        logger.error(f"Invalid email format: {email}")
+        return None
+
+    def send_email():
+        try:
+            if msg:
+                # Extract HTML from EmailMultiAlternatives
+                raw_msg = msg.message().as_bytes()
+                parsed_msg = message_from_bytes(raw_msg)
+                html_content = ""
+                for part in parsed_msg.walk():
+                    if part.get_content_type() == "text/html":
+                        html_content = part.get_payload(decode=True).decode()
+                        break
+                if not html_content:
+                    logger.warning("No HTML content found in email, using plain text as fallback")
+                    html_content = msg.body or "No content available"
+                
+                # Clean and validate from_email
+                cleaned_from_email = clean_email(msg.from_email)
+                if not cleaned_from_email:
+                    logger.error(f"Invalid from_email in msg: {msg.from_email}")
+                    return
+                
+                email_params = {
+                    "from": f"Bankunited <{cleaned_from_email}>",
+                    "to": msg.to,
+                    "subject": msg.subject,
+                    "html": html_content
+                }
+            else:
+                # Use direct parameters
+                if not (to_email and subject and html_body):
+                    logger.error("Missing required email parameters")
+                    return
+                
+                # Clean and validate from_email
+                cleaned_from_email = clean_email(from_email)
+                if not cleaned_from_email:
+                    logger.error(f"Invalid from_email: {from_email}")
+                    return
+                
+                email_params = {
+                    "from": f"Bankunited <{cleaned_from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_body
+                }
+
+            # Log the email_params for debugging
+            logger.debug(f"Sending email with params: {email_params}")
+
+            # Send email via Resend
+            response = resend.Emails.send(email_params)
+            logger.info(f"Email sent successfully to {email_params['to']}: {response}")
+
+        except Exception as e:
+            logger.error(f"Resend email failed for {email_params.get('to', 'unknown')}: {str(e)}")
+
+    threading.Thread(target=send_email, daemon=True).start()
 
 
 def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=None, from_email="Bankunited <info@bnunited.com>"):
