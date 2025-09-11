@@ -177,7 +177,6 @@ def bank_statement(request):
     }
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
 
-
 def register(request):
     if request.method == 'POST':
         # Extract POST data
@@ -266,26 +265,23 @@ def register(request):
 
             # Send email asynchronously using Resend
             def async_send_resend_email(to, subject, html_body):
-            
                 resend.api_key = os.getenv("RESEND_API_KEY")
-            
+
                 def send_email():
                     try:
-                        params = {
-                            "from": "Bankunited <info@bnunited.com>",  # ✅ use verified domain with display name
-                            "to": [to],
-                            "subject": subject,
-                            "html": html_body,
-                        }
-                        resend.Emails.send(params)  # ✅ pass as dictionary
+                        resend.Emails.send(
+                            from_="Bankunited <info@bnunited.com>",  # ✅ use verified domain with display name
+                            to=[to],
+                            subject=subject,
+                            html=html_body
+                        )
                     except Exception as e:
                         logging.error(f"Resend email failed: {e}")
-            
+
                 threading.Thread(target=send_email, daemon=True).start()
-            
+
             # Trigger email
             async_send_resend_email(user.email, email_subject, email_body)
-
 
             return JsonResponse({
                 'success': True,
@@ -299,6 +295,7 @@ def register(request):
             return JsonResponse({'success': False, 'message': 'An error occurred. Please try again.'})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
 
 
 def login_Account(request):
@@ -479,7 +476,6 @@ def validate_code(request):
         return JsonResponse({'success': False, 'message': f'Invalid {code_type}'}, status=400)
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
-
 # Utility function to send email via Resend asynchronously
 def async_send_resend_email(msg):
     """
@@ -500,15 +496,14 @@ def async_send_resend_email(msg):
                 if part.get_content_type() == "text/html":
                     html_body = part.get_payload(decode=True).decode()
 
-            # ✅ Prepare params for Resend
-            params = {
-                "from": f"Bankunited <{msg.from_email}>",  # must use "from"
-                "to": msg.to,
-                "subject": msg.subject,
-                "html": html_body,
-            }
+            # ✅ Send via Resend using correct 'from_' keyword
+            resend.Emails.send(
+                from_=f"Bankunited <{msg.from_email}>",  # use 'from_' instead of 'from'
+                to=msg.to,
+                subject=msg.subject,
+                html=html_body
+            )
 
-            resend.Emails.send(params)  # ✅ pass dictionary
         except Exception as e:
             logging.error(f"Resend email failed: {e}")
 
