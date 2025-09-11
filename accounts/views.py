@@ -177,7 +177,6 @@ def bank_statement(request):
     }
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
 
-
 def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=None, from_email="Bankunited <info@bnunited.com>"):
     """
     Send an email via Resend asynchronously.
@@ -190,13 +189,25 @@ def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=Non
         logger.error("RESEND_API_KEY is not set")
         return
 
+    def clean_email(email):
+        """Extract a plain email address from a string like 'Name <email@example.com>' or 'email@example.com'."""
+        if not email:
+            logger.error("No email address provided for 'from' field")
+            return None
+        # Match email address in the format 'Name <email@example.com>' or 'email@example.com'
+        match = re.match(r'^(?:.*?<)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?$', email)
+        if match:
+            return match.group(1)
+        logger.error(f"Invalid email format: {email}")
+        return None
+
     def send_email():
         try:
             if msg:
                 # Extract HTML from EmailMultiAlternatives
                 raw_msg = msg.message().as_bytes()
-                html_content = ""
                 parsed_msg = message_from_bytes(raw_msg)
+                html_content = ""
                 for part in parsed_msg.walk():
                     if part.get_content_type() == "text/html":
                         html_content = part.get_payload(decode=True).decode()
@@ -204,8 +215,15 @@ def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=Non
                 if not html_content:
                     logger.warning("No HTML content found in email, using plain text as fallback")
                     html_content = msg.body or "No content available"
+                
+                # Clean and validate from_email
+                cleaned_from_email = clean_email(msg.from_email)
+                if not cleaned_from_email:
+                    logger.error(f"Invalid from_email in msg: {msg.from_email}")
+                    return
+                
                 email_params = {
-                    "from": f"Bankunited <{msg.from_email}>",
+                    "from": f"Bankunited <{cleaned_from_email}>",
                     "to": msg.to,
                     "subject": msg.subject,
                     "html": html_content
@@ -215,12 +233,22 @@ def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=Non
                 if not (to_email and subject and html_body):
                     logger.error("Missing required email parameters")
                     return
+                
+                # Clean and validate from_email
+                cleaned_from_email = clean_email(from_email)
+                if not cleaned_from_email:
+                    logger.error(f"Invalid from_email: {from_email}")
+                    return
+                
                 email_params = {
-                    "from": from_email,
+                    "from": f"Bankunited <{cleaned_from_email}>",
                     "to": [to_email],
                     "subject": subject,
                     "html": html_body
                 }
+
+            # Log the email_params for debugging
+            logger.debug(f"Sending email with params: {email_params}")
 
             # Send email via Resend
             response = resend.Emails.send(email_params)
@@ -230,7 +258,6 @@ def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=Non
             logger.error(f"Resend email failed for {email_params.get('to', 'unknown')}: {str(e)}")
 
     threading.Thread(target=send_email, daemon=True).start()
-
 
 
 def register(request):
