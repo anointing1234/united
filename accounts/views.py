@@ -53,7 +53,7 @@ from django.utils.timezone import now
 import calendar
 from django.core.exceptions import ValidationError
 from django.contrib.auth import update_session_auth_hash
-
+from email import message_from_bytes
 logger = logging.getLogger(__name__)
 import threading
 import resend
@@ -178,6 +178,61 @@ def bank_statement(request):
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
 
 
+def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=None, from_email="Bankunited <info@bnunited.com>"):
+    """
+    Send an email via Resend asynchronously.
+    - If `msg` is provided (EmailMultiAlternatives), extract HTML content and use its recipient and subject.
+    - If `to_email`, `subject`, and `html_body` are provided, use them directly.
+    - `from_email` defaults to a verified sender but can be overridden by `msg.from_email`.
+    """
+    resend.api_key = os.getenv("RESEND_API_KEY")
+    if not resend.api_key:
+        logger.error("RESEND_API_KEY is not set")
+        return
+
+    def send_email():
+        try:
+            if msg:
+                # Extract HTML from EmailMultiAlternatives
+                raw_msg = msg.message().as_bytes()
+                html_content = ""
+                parsed_msg = message_from_bytes(raw_msg)
+                for part in parsed_msg.walk():
+                    if part.get_content_type() == "text/html":
+                        html_content = part.get_payload(decode=True).decode()
+                        break
+                if not html_content:
+                    logger.warning("No HTML content found in email, using plain text as fallback")
+                    html_content = msg.body or "No content available"
+                email_params = {
+                    "from": f"Bankunited <{msg.from_email}>",
+                    "to": msg.to,
+                    "subject": msg.subject,
+                    "html": html_content
+                }
+            else:
+                # Use direct parameters
+                if not (to_email and subject and html_body):
+                    logger.error("Missing required email parameters")
+                    return
+                email_params = {
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_body
+                }
+
+            # Send email via Resend
+            response = resend.Emails.send(email_params)
+            logger.info(f"Email sent successfully to {email_params['to']}: {response}")
+
+        except Exception as e:
+            logger.error(f"Resend email failed for {email_params.get('to', 'unknown')}: {str(e)}")
+
+    threading.Thread(target=send_email, daemon=True).start()
+
+
+
 def register(request):
     if request.method == 'POST':
         # Extract POST data
@@ -221,7 +276,7 @@ def register(request):
                 account_type=account_type
             )
 
-            # 🔑 Generate fresh raw PINs and hash them
+            # Generate fresh raw PINs and hash them
             plain_login_pin = user.generate_random_number(6)
             plain_transaction_pin = user.generate_random_number(4)
             user.login_pin = make_password(plain_login_pin)
@@ -233,10 +288,8 @@ def register(request):
 
             user.save()
 
-            # === Prepare Email ===
+            # Prepare Email
             email_subject = 'Welcome to Bankunited'
-
-            # HTML email directly in the view
             email_body = f"""
             <html>
             <head>
@@ -265,25 +318,7 @@ def register(request):
             """
 
             # Send email asynchronously using Resend
-            def async_send_resend_email(to, subject, html_body):
-              
-                resend.api_key = os.getenv("RESEND_API_KEY")
-
-                def send_email():
-                    try:
-                        resend.Emails.send(
-                            from_email="info@bnunited.com",  # verified domain
-                            to=[to],
-                            subject=subject,
-                            html=html_body
-                        )
-                    except Exception as e:
-                        logging.error(f"Resend email failed: {e}")
-
-                threading.Thread(target=send_email, daemon=True).start()
-
-            # Trigger email
-            async_send_resend_email(user.email, email_subject, email_body)
+            async_send_resend_email(to_email=user.email, subject=email_subject, html_body=email_body)
 
             return JsonResponse({
                 'success': True,
@@ -292,11 +327,12 @@ def register(request):
             })
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"Registration failed for email {email}: {str(e)}")
             return JsonResponse({'success': False, 'message': 'An error occurred. Please try again.'})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+
 
 
 def login_Account(request):
@@ -478,47 +514,10 @@ def validate_code(request):
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
-
-# Utility function to send email via Resend asynchronously
-def async_send_resend_email(msg):
-    """
-    msg: EmailMultiAlternatives object with attachments already added
-    """
-    resend.api_key = os.getenv("RESEND_API_KEY")
-
-    def send_email():
-        try:
-            # Convert EmailMultiAlternatives to raw HTML + attachments for Resend
-            from email import message_from_bytes
-            raw_msg = msg.message().as_bytes()
-            parsed_msg = message_from_bytes(raw_msg)
-
-            # Extract plain text and html parts
-            html_body = ""
-            for part in parsed_msg.walk():
-                content_type = part.get_content_type()
-                if content_type == "text/html":
-                    html_body = part.get_payload(decode=True).decode()
-
-            # Send via Resend
-            resend.Emails.send(
-                from_email=msg.from_email,
-                to=msg.to,
-                subject=msg.subject,
-                html=html_body
-            )
-        except Exception as e:
-            logging.error(f"Resend email failed: {e}")
-
-    threading.Thread(target=send_email, daemon=True).start()
-
-
 def local_transfer_views(request):
     if request.method == 'POST':
         try:
-            # -----------------------------
             # Extract and validate form data
-            # -----------------------------
             from_account = request.POST.get('from_account')
             raw_amount = request.POST.get('amount')
             beneficiary_id = request.POST.get('beneficiary')
@@ -533,7 +532,7 @@ def local_transfer_views(request):
             bank_address = request.POST.get('bank_address')
 
             # Validate required fields
-            if not from_account or from_account not in ['checking', 'loan']:  # Adjusted to match model fields
+            if not from_account or from_account not in ['checking', 'loan']:
                 return JsonResponse({'success': False, 'message': 'Invalid or missing account type'}, status=400)
             if not to_account or not bank_name:
                 return JsonResponse({'success': False, 'message': 'Recipient account number and bank name are required'}, status=400)
@@ -548,15 +547,11 @@ def local_transfer_views(request):
 
             user = request.user
 
-            # -----------------------------
             # Verify PIN
-            # -----------------------------
             if hasattr(user, "pin") and not check_password(transaction_pin, user.pin):
                 return JsonResponse({'success': False, 'message': 'Invalid transaction PIN'}, status=400)
 
-            # -----------------------------
             # Get and validate account balance
-            # -----------------------------
             try:
                 balance = AccountBalance.objects.get(account=user)
             except AccountBalance.DoesNotExist:
@@ -580,9 +575,7 @@ def local_transfer_views(request):
             if amount > current_balance:
                 return JsonResponse({'success': False, 'message': 'Insufficient balance'}, status=400)
 
-            # -----------------------------
             # Atomic transaction
-            # -----------------------------
             with transaction.atomic():
                 # Deduct balance
                 if currency == 'USD':
@@ -662,40 +655,41 @@ def local_transfer_views(request):
                 "region": "local",
             }
 
-            # -----------------------------
-            # Send Debit Notification Email via Resend (with logo intact)
-            # -----------------------------
+            # Send Debit Notification Email via Resend
             try:
                 email_subject = "Bankunited Debit Notification"
                 email_body = render_to_string("Dashboard/emails/receipt_template.html", debit_context)
 
-                msg = EmailMultiAlternatives(
-                    email_subject,
-                    "",
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                )
-                msg.mixed_subtype = "related"
-                msg.attach_alternative(email_body, "text/html")
+                if not user.email or '@' not in user.email:
+                    logger.warning(f"Invalid or missing email for user {user.id}")
+                else:
+                    msg = EmailMultiAlternatives(
+                        email_subject,
+                        "",
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                    )
+                    msg.mixed_subtype = "related"
+                    msg.attach_alternative(email_body, "text/html")
 
-                # Attach logo if exists
-                logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_white.png')
-                if os.path.exists(logo_path):
-                    with open(logo_path, 'rb') as f:
+                    # Attach logo if exists
+                    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
+                    if os.path.exists(logo_path):
                         from email.mime.image import MIMEImage
-                        img = MIMEImage(f.read())
-                        img.add_header('Content-ID', '<logo_white.png>')
-                        img.add_header('Content-Disposition', 'inline', filename='logo_white.png')
-                        msg.attach(img)
+                        with open(logo_path, 'rb') as f:
+                            img = MIMEImage(f.read())
+                            img.add_header('Content-ID', '<logo.png>')
+                            img.add_header('Content-Disposition', 'inline', filename='logo.png')
+                            msg.attach(img)
+                    else:
+                        logger.warning(f"Logo file not found at {logo_path}")
 
-                async_send_resend_email(msg)
-                logger.info(f"Debit notification email sent to {user.email}")
+                    async_send_resend_email(msg=msg)
+                    logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
 
-            # -----------------------------
             # Return JSON with receipt URL
-            # -----------------------------
             receipt_url = reverse("transaction_receipt", args=[unique_reference])
             return JsonResponse({
                 "success": True,
@@ -712,16 +706,11 @@ def local_transfer_views(request):
             'beneficiaries': Beneficiary.objects.filter(user=request.user),
         }
         return render(request, 'dashboard/finances/local_transfer.html', context)
-    
 
-
-
-def Transfer_views(request):  # Renamed to match URL pattern
+def Transfer_views(request):
     if request.method == 'POST':
         try:
-            # -----------------------------
             # Extract and validate form data
-            # -----------------------------
             from_account = request.POST.get('from_account')
             raw_amount = request.POST.get('amount')
             beneficiary_id = request.POST.get('beneficiary')
@@ -753,15 +742,11 @@ def Transfer_views(request):  # Renamed to match URL pattern
 
             user = request.user
 
-            # -----------------------------
             # Verify PIN
-            # -----------------------------
             if hasattr(user, "pin") and not check_password(transaction_pin, user.pin):
                 return JsonResponse({'success': False, 'message': 'Invalid transaction PIN'}, status=400)
 
-            # -----------------------------
             # Get and validate account balance
-            # -----------------------------
             try:
                 balance = AccountBalance.objects.get(account=user)
             except AccountBalance.DoesNotExist:
@@ -785,9 +770,7 @@ def Transfer_views(request):  # Renamed to match URL pattern
             if amount > current_balance:
                 return JsonResponse({'success': False, 'message': 'Insufficient balance'}, status=400)
 
-            # -----------------------------
             # Atomic transaction
-            # -----------------------------
             with transaction.atomic():
                 # Deduct balance
                 if currency == 'USD':
@@ -850,13 +833,11 @@ def Transfer_views(request):  # Renamed to match URL pattern
                     status='pending',
                     remarks='International transfer completed',
                     charge=Decimal("0.00"),
-                    region='international',  # Corrected to match template context
+                    region='international',
                     reference=unique_reference
                 )
 
-            # -----------------------------
             # Prepare context for template & email
-            # -----------------------------
             debit_context = {
                 "sender_name": f"{user.first_name} {user.last_name}",
                 "sender_account_number": getattr(user, "account_number", "N/A"),
@@ -870,39 +851,41 @@ def Transfer_views(request):  # Renamed to match URL pattern
                 "region": "international",
             }
 
-            # -----------------------------
-            # Send Debit Notification Email via Resend (with logo intact)
-            # -----------------------------
+            # Send Debit Notification Email via Resend
             try:
                 email_subject = "Bankunited Debit Notification"
                 email_body = render_to_string("Dashboard/emails/receipt_template.html", debit_context)
 
-                msg = EmailMultiAlternatives(
-                    email_subject,
-                    "",
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                )
-                msg.mixed_subtype = "related"
-                msg.attach_alternative(email_body, "text/html")
+                if not user.email or '@' not in user.email:
+                    logger.warning(f"Invalid or missing email for user {user.id}")
+                else:
+                    msg = EmailMultiAlternatives(
+                        email_subject,
+                        "",
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                    )
+                    msg.mixed_subtype = "related"
+                    msg.attach_alternative(email_body, "text/html")
 
-                logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
-                if os.path.exists(logo_path):
-                    from email.mime.image import MIMEImage
-                    with open(logo_path, 'rb') as f:
-                        img = MIMEImage(f.read())
-                        img.add_header('Content-ID', '<logo_white.png>')
-                        img.add_header('Content-Disposition', 'inline', filename='logo.png')
-                        msg.attach(img)
+                    # Attach logo if exists
+                    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
+                    if os.path.exists(logo_path):
+                        from email.mime.image import MIMEImage
+                        with open(logo_path, 'rb') as f:
+                            img = MIMEImage(f.read())
+                            img.add_header('Content-ID', '<logo.png>')
+                            img.add_header('Content-Disposition', 'inline', filename='logo.png')
+                            msg.attach(img)
+                    else:
+                        logger.warning(f"Logo file not found at {logo_path}")
 
-                async_send_resend_email(msg)
-                logger.info(f"Debit notification email sent to {user.email}")
+                    async_send_resend_email(msg=msg)
+                    logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
 
-            # -----------------------------
             # Return JSON with receipt URL
-            # -----------------------------
             receipt_url = reverse("transaction_receipt", args=[unique_reference])
             return JsonResponse({
                 "success": True,
@@ -919,9 +902,6 @@ def Transfer_views(request):  # Renamed to match URL pattern
             'beneficiaries': Beneficiary.objects.filter(user=request.user),
         }
         return render(request, 'dashboard/finances/transfer.html', context)
-
-
-
 
 def get_payment_gateway(request):
     try:
