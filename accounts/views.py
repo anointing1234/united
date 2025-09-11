@@ -177,6 +177,61 @@ def bank_statement(request):
     }
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
 
+
+
+def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=None):
+    """
+    Send an email via Resend asynchronously.
+    - If `msg` is provided (EmailMultiAlternatives), extract HTML content from it.
+    - If `to_email`, `subject`, and `html_body` are provided, use them directly.
+    """
+    resend.api_key = os.getenv("RESEND_API_KEY")
+    if not resend.api_key:
+        logger.error("RESEND_API_KEY is not set")
+        return
+
+    def send_email():
+        try:
+            if msg:
+                # Extract HTML from EmailMultiAlternatives
+                raw_msg = msg.message().as_bytes()
+                parsed_msg = message_from_bytes(raw_msg)
+                html_content = ""
+                for part in parsed_msg.walk():
+                    if part.get_content_type() == "text/html":
+                        html_content = part.get_payload(decode=True).decode()
+                        break
+                if not html_content:
+                    logger.warning("No HTML content found in email, using plain text as fallback")
+                    html_content = msg.body or "No content available"
+                email_params = {
+                    "from": f"Bankunited <{msg.from_email}>",
+                    "to": msg.to,
+                    "subject": msg.subject,
+                    "html": html_content
+                }
+            else:
+                # Use direct parameters
+                if not (to_email and subject and html_body):
+                    logger.error("Missing required email parameters")
+                    return
+                email_params = {
+                    "from": "Bankunited <info@bnunited.com>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_body
+                }
+
+            # Send email via Resend
+            resend.Emails.send(email_params)
+            logger.info(f"Email sent successfully to {email_params['to']}")
+
+        except Exception as e:
+            logger.error(f"Resend email failed: {e}")
+
+    threading.Thread(target=send_email, daemon=True).start()
+
+
 def register(request):
     if request.method == 'POST':
         # Extract POST data
@@ -220,7 +275,7 @@ def register(request):
                 account_type=account_type
             )
 
-            # 🔑 Generate fresh raw PINs and hash them
+            # Generate fresh raw PINs and hash them
             plain_login_pin = user.generate_random_number(6)
             plain_transaction_pin = user.generate_random_number(4)
             user.login_pin = make_password(plain_login_pin)
@@ -232,10 +287,8 @@ def register(request):
 
             user.save()
 
-            # === Prepare Email ===
+            # Prepare Email
             email_subject = 'Welcome to Bankunited'
-
-            # HTML email directly in the view
             email_body = f"""
             <html>
             <head>
@@ -264,24 +317,7 @@ def register(request):
             """
 
             # Send email asynchronously using Resend
-            def async_send_resend_email(to, subject, html_body):
-                resend.api_key = os.getenv("RESEND_API_KEY")
-
-                def send_email():
-                    try:
-                        resend.Emails.send(
-                            from_="Bankunited <info@bnunited.com>",  # ✅ use verified domain with display name
-                            to=[to],
-                            subject=subject,
-                            html=html_body
-                        )
-                    except Exception as e:
-                        logging.error(f"Resend email failed: {e}")
-
-                threading.Thread(target=send_email, daemon=True).start()
-
-            # Trigger email
-            async_send_resend_email(user.email, email_subject, email_body)
+            async_send_resend_email(to_email=user.email, subject=email_subject, html_body=email_body)
 
             return JsonResponse({
                 'success': True,
@@ -290,13 +326,10 @@ def register(request):
             })
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"Registration failed for email {email}: {str(e)}")
             return JsonResponse({'success': False, 'message': 'An error occurred. Please try again.'})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
-
 
 def login_Account(request):
     if request.method == 'POST':
@@ -476,14 +509,16 @@ def validate_code(request):
         return JsonResponse({'success': False, 'message': f'Invalid {code_type}'}, status=400)
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
 # Utility function to send email via Resend asynchronously
 def async_send_resend_email(msg):
     """
     msg: EmailMultiAlternatives object with attachments already added
     """
-    from email import message_from_bytes
-
     resend.api_key = os.getenv("RESEND_API_KEY")
+    if not resend.api_key:
+        logger.error("RESEND_API_KEY is not set")
+        return
 
     def send_email():
         try:
@@ -495,17 +530,23 @@ def async_send_resend_email(msg):
             for part in parsed_msg.walk():
                 if part.get_content_type() == "text/html":
                     html_body = part.get_payload(decode=True).decode()
+                    break
 
-            # ✅ Send via Resend using correct 'from_' keyword
+            if not html_body:
+                logger.warning("No HTML content found in email, using plain text as fallback")
+                html_body = msg.body or "No content available"
+
+            # Send via Resend using correct 'from' keyword
             resend.Emails.send(
-                from_=f"Bankunited <{msg.from_email}>",  # use 'from_' instead of 'from'
+                **from**=f"Bankunited <{msg.from_email}>",  # Changed from 'from_' to 'from'
                 to=msg.to,
                 subject=msg.subject,
                 html=html_body
             )
+            logger.info(f"Email sent successfully to {msg.to}")
 
         except Exception as e:
-            logging.error(f"Resend email failed: {e}")
+            logger.error(f"Resend email failed: {e}")
 
     threading.Thread(target=send_email, daemon=True).start()
 
