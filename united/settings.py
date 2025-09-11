@@ -52,6 +52,8 @@ ALLOWED_HOSTS = ["bnunited.com","www.bnunited.com"]
 # # Application definition
 AUTH_USER_MODEL = 'accounts.Account'
 
+LOGIN_URL = '/Accounts/login/'
+
 INSTALLED_APPS = [
     "unfold",
     "unfold.contrib.filters",
