@@ -15,6 +15,15 @@ import os
 import environ
 
 
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+
+if not RESEND_API_KEY:
+    print("❌ RESEND_API_KEY not found in environment!")
+else:
+    print("✅ RESEND_API_KEY loaded successfully")
+
+
+
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +33,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 
 environ.Env.read_env(os.path.join(BASE_DIR,'file.env'))
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -172,16 +182,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.zoho.com'
-EMAIL_PORT = 465
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
-EMAIL_HOST_USER = env('EMAIL_HOST_USER')  
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = 'info@bnunited.com'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.zoho.com'
+# EMAIL_PORT = 465
+# EMAIL_USE_TLS = False
+# EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = env('EMAIL_HOST_USER')  
+# EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+# DEFAULT_FROM_EMAIL = 'info@bnunited.com'
 
 
 

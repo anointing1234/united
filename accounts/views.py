@@ -55,14 +55,8 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import update_session_auth_hash
 
 logger = logging.getLogger(__name__)
-
-
 import threading
-
-def async_send_email(msg):
-    """Send EmailMultiAlternatives in a background thread."""
-    threading.Thread(target=msg.send, kwargs={"fail_silently": True}, daemon=True).start()
-
+import resend
 
 
 def login_view(request):
@@ -184,7 +178,6 @@ def bank_statement(request):
     return render(request,'Dashboard/fianaces/bank_statements.html',context)
 
 
-
 def register(request):
     if request.method == 'POST':
         # Extract POST data
@@ -241,33 +234,56 @@ def register(request):
             user.save()
 
             # === Prepare Email ===
-            email_subject = 'Welcome to Global Trust Bank'
-            email_body = render_to_string('emails/registration_email.html', {
-                'user': user,
-                'login_pin': plain_login_pin,
-                'transaction_pin': plain_transaction_pin,
-                'current_year': timezone.now().year,
-            })
+            email_subject = 'Welcome to Bankunited'
 
-            msg = EmailMultiAlternatives(
-                email_subject,
-                '',  # Plain text fallback
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-            )
-            msg.mixed_subtype = 'related'
-            msg.attach_alternative(email_body, "text/html")
+            # HTML email directly in the view
+            email_body = f"""
+            <html>
+            <head>
+              <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                .container {{ max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px; }}
+                .logo {{ text-align: center; margin-bottom: 20px; }}
+                .btn {{ display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; }}
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="logo">
+                  <img src="{request.build_absolute_uri('/static/images/logo.png')}" alt="Bankunited Logo" width="120">
+                </div>
+                <h2>Welcome, {user.first_name} {user.last_name}!</h2>
+                <p>Your account has been successfully created at <strong>Bankunited</strong>.</p>
+                <p><strong>Login PIN:</strong> {plain_login_pin}<br>
+                   <strong>Transaction PIN:</strong> {plain_transaction_pin}</p>
+                <p>Please keep these PINs secure.</p>
+                <p>Thank you for joining us!</p>
+                <p>&copy; {timezone.now().year} Bankunited</p>
+              </div>
+            </body>
+            </html>
+            """
 
-            # Attach logo (if exists)
-            logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
-            if os.path.exists(logo_path):
-                with open(logo_path, 'rb') as f:
-                    img = MIMEImage(f.read())
-                    img.add_header('Content-ID', '<logo.png>')
-                    img.add_header('Content-Disposition', 'inline', filename='logo.png')
-                    msg.attach(img)
+            # Send email asynchronously using Resend
+            def async_send_resend_email(to, subject, html_body):
+              
+                resend.api_key = os.getenv("RESEND_API_KEY")
 
-            async_send_email(msg)
+                def send_email():
+                    try:
+                        resend.Emails.send(
+                            from_email="info@bnunited.com",  # verified domain
+                            to=[to],
+                            subject=subject,
+                            html=html_body
+                        )
+                    except Exception as e:
+                        logging.error(f"Resend email failed: {e}")
+
+                threading.Thread(target=send_email, daemon=True).start()
+
+            # Trigger email
+            async_send_resend_email(user.email, email_subject, email_body)
 
             return JsonResponse({
                 'success': True,
@@ -281,10 +297,6 @@ def register(request):
             return JsonResponse({'success': False, 'message': 'An error occurred. Please try again.'})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
-
-def emails(request):
-    return render(request, 'emails/registration_email.html')
 
 
 def login_Account(request):
@@ -467,6 +479,38 @@ def validate_code(request):
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 
+# Utility function to send email via Resend asynchronously
+def async_send_resend_email(msg):
+    """
+    msg: EmailMultiAlternatives object with attachments already added
+    """
+    resend.api_key = os.getenv("RESEND_API_KEY")
+
+    def send_email():
+        try:
+            # Convert EmailMultiAlternatives to raw HTML + attachments for Resend
+            from email import message_from_bytes
+            raw_msg = msg.message().as_bytes()
+            parsed_msg = message_from_bytes(raw_msg)
+
+            # Extract plain text and html parts
+            html_body = ""
+            for part in parsed_msg.walk():
+                content_type = part.get_content_type()
+                if content_type == "text/html":
+                    html_body = part.get_payload(decode=True).decode()
+
+            # Send via Resend
+            resend.Emails.send(
+                from_email=msg.from_email,
+                to=msg.to,
+                subject=msg.subject,
+                html=html_body
+            )
+        except Exception as e:
+            logging.error(f"Resend email failed: {e}")
+
+    threading.Thread(target=send_email, daemon=True).start()
 
 
 def local_transfer_views(request):
@@ -605,9 +649,6 @@ def local_transfer_views(request):
                     reference=unique_reference
                 )
 
-            # -----------------------------
-            # Prepare context for template & email
-            # -----------------------------
             debit_context = {
                 "sender_name": f"{user.first_name} {user.last_name}",
                 "sender_account_number": getattr(user, "account_number", "N/A"),
@@ -622,11 +663,12 @@ def local_transfer_views(request):
             }
 
             # -----------------------------
-            # Send Debit Notification Email
+            # Send Debit Notification Email via Resend (with logo intact)
             # -----------------------------
             try:
-                email_subject = "Debit Notification"
+                email_subject = "Bankunited Debit Notification"
                 email_body = render_to_string("Dashboard/emails/receipt_template.html", debit_context)
+
                 msg = EmailMultiAlternatives(
                     email_subject,
                     "",
@@ -636,15 +678,17 @@ def local_transfer_views(request):
                 msg.mixed_subtype = "related"
                 msg.attach_alternative(email_body, "text/html")
 
+                # Attach logo if exists
                 logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_white.png')
                 if os.path.exists(logo_path):
                     with open(logo_path, 'rb') as f:
+                        from email.mime.image import MIMEImage
                         img = MIMEImage(f.read())
                         img.add_header('Content-ID', '<logo_white.png>')
                         img.add_header('Content-Disposition', 'inline', filename='logo_white.png')
                         msg.attach(img)
 
-                async_send_email(msg)
+                async_send_resend_email(msg)
                 logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
@@ -669,8 +713,6 @@ def local_transfer_views(request):
         }
         return render(request, 'dashboard/finances/local_transfer.html', context)
     
-
-
 
 
 
@@ -829,11 +871,12 @@ def Transfer_views(request):  # Renamed to match URL pattern
             }
 
             # -----------------------------
-            # Send Debit Notification Email
+            # Send Debit Notification Email via Resend (with logo intact)
             # -----------------------------
             try:
-                email_subject = "Debit Notification"
+                email_subject = "Bankunited Debit Notification"
                 email_body = render_to_string("Dashboard/emails/receipt_template.html", debit_context)
+
                 msg = EmailMultiAlternatives(
                     email_subject,
                     "",
@@ -845,13 +888,14 @@ def Transfer_views(request):  # Renamed to match URL pattern
 
                 logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
                 if os.path.exists(logo_path):
+                    from email.mime.image import MIMEImage
                     with open(logo_path, 'rb') as f:
                         img = MIMEImage(f.read())
                         img.add_header('Content-ID', '<logo_white.png>')
                         img.add_header('Content-Disposition', 'inline', filename='logo.png')
                         msg.attach(img)
 
-                async_send_email(msg)
+                async_send_resend_email(msg)
                 logger.info(f"Debit notification email sent to {user.email}")
             except Exception as e:
                 logger.error(f"Failed to send email to {user.email}: {str(e)}")
@@ -874,7 +918,7 @@ def Transfer_views(request):  # Renamed to match URL pattern
         context = {
             'beneficiaries': Beneficiary.objects.filter(user=request.user),
         }
-
+        return render(request, 'dashboard/finances/transfer.html', context)
 
 
 
