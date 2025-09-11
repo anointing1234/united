@@ -73,7 +73,7 @@ def signup_view(request):
 
 
 
-
+@login_required
 def dashboard(request):
     # Recent 10 transactions
     transactions = Transaction.objects.filter(user=request.user).order_by('-transaction_date')[:10]
@@ -139,10 +139,13 @@ def dashboard(request):
     }
     return render(request, 'Dashboard/index.html', context)
 
+
+@login_required
 def deposit_view(request):
     deposits = Deposit.objects.filter(user=request.user).order_by('-date')
     return render(request,'Dashboard/fianaces/deposit.html',{'deposits':deposits})
 
+@login_required
 def local_transfer_view(request):
     beneficiaries = Beneficiary.objects.filter(user=request.user)
     context = {
@@ -150,6 +153,8 @@ def local_transfer_view(request):
     }
     return render(request,'Dashboard/fianaces/local_transfer.html',context)    
 
+
+@login_required
 def international_transfer_view(request):
     beneficiaries = Beneficiary.objects.filter(user=request.user)
     context = {
@@ -158,17 +163,25 @@ def international_transfer_view(request):
     return render(request,'Dashboard/fianaces/international_transfer.html',context)
 
 
+
+@login_required
 def loans_views(request):
     return render(request,'Dashboard/fianaces/loans.html',)
 
+
+@login_required
 def grants(request):
     loans = LoanRequest.objects.filter(user=request.user).order_by('-date')
     return render(request,'Dashboard/fianaces/grants.html',{'loans': loans})
 
+
+@login_required
 def profile_view(request):
     return render(request,'Dashboard/profile.html')
 
 
+
+@login_required
 def bank_statement(request):
     transactions = Transaction.objects.filter(user=request.user).order_by('-transaction_date')
 
