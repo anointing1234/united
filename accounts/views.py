@@ -53,7 +53,7 @@ from django.utils.timezone import now
 import calendar
 from django.core.exceptions import ValidationError
 from django.contrib.auth import update_session_auth_hash
-
+from email import message_from_bytes
 logger = logging.getLogger(__name__)
 import threading
 import resend
@@ -195,8 +195,8 @@ def async_send_resend_email(to_email=None, subject=None, html_body=None, msg=Non
             if msg:
                 # Extract HTML from EmailMultiAlternatives
                 raw_msg = msg.message().as_bytes()
-                parsed_msg = message_from_bytes(raw_msg)
                 html_content = ""
+                parsed_msg = message_from_bytes(raw_msg)
                 for part in parsed_msg.walk():
                     if part.get_content_type() == "text/html":
                         html_content = part.get_payload(decode=True).decode()
