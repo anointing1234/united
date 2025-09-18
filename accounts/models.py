@@ -482,6 +482,10 @@ class TransferCode(models.Model):
         on_delete=models.CASCADE,
         related_name="transfer_codes"
     )
+    freeze_code = models.CharField(
+        max_length=10, unique=True, blank=True, null=True,
+        help_text="Code required to freeze/unfreeze transfers"
+    )
     tac_code = models.CharField(max_length=10, unique=True, blank=True, 
         null=True, help_text="TAC code for verification")
     tax_code = models.CharField(max_length=10, unique=True, blank=True, 
@@ -503,6 +507,8 @@ class TransferCode(models.Model):
 
     def __str__(self):
         return f"Transfer Code for {self.user.email} (Valid: {self.is_valid()})"
+    
+    
 
 
 # Define choices for transaction type and status

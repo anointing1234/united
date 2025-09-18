@@ -433,8 +433,8 @@ def register(request):
 def login_Account(request):
     if request.method == 'POST':
         # Extract POST data
-        account_id = request.POST.get('account_id')  # Can be Account ID or Email
-        login_pin = request.POST.get('login_pin')
+        account_id = request.POST.get('account_id','').strip()   # Can be Account ID or Email
+        login_pin = request.POST.get('login_pin','').strip() 
 
         # 🔎 Debug prints
         print("🔎 Raw POST Data:", request.POST)
@@ -543,6 +543,7 @@ def validate_pin(request):
 
 
 
+@login_required
 def send_transfer_code(request):
     if request.method == 'POST':
         # Delete any previous unused/unexpired codes
@@ -560,6 +561,7 @@ def send_transfer_code(request):
             tac_code=generate_unique_code('tac_code'),
             tax_code=generate_unique_code('tax_code'),
             imf_code=generate_unique_code('imf_code'),
+            freeze_code=generate_unique_code('freeze_code'),
             expires_at=timezone.now() + timedelta(hours=1)
         )
 
@@ -570,6 +572,7 @@ def send_transfer_code(request):
                 'tac_code': transfer_code.tac_code,
                 'tax_code': transfer_code.tax_code,
                 'imf_code': transfer_code.imf_code,
+                'freeze_code': transfer_code.freeze_code,
                 'expires_at': transfer_code.expires_at.isoformat()
             }
         })
@@ -604,10 +607,13 @@ def validate_code(request):
             return JsonResponse({'success': True})
         if code_type == 'imf_code' and code == transfer_code.imf_code:
             return JsonResponse({'success': True})
+        if code_type == 'freeze_code' and code == transfer_code.freeze_code:
+            return JsonResponse({'success': True, 'message': 'Freeze code validated'})
 
         return JsonResponse({'success': False, 'message': f'Invalid {code_type}'}, status=400)
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
 
 def local_transfer_views(request):
     if request.method == 'POST':
@@ -622,7 +628,7 @@ def local_transfer_views(request):
             routing_number = request.POST.get('routing_number')
             swift_code = request.POST.get('swift_code')
             description = request.POST.get('description') or "Local transfer"
-            transaction_pin = request.POST.get('transaction_pin')
+            transaction_pin = request.POST.get('transaction_pin','').strip() 
             currency = request.POST.get('currency', 'USD').upper()
             bank_address = request.POST.get('bank_address')
 
@@ -815,7 +821,7 @@ def Transfer_views(request):
             routing_number = request.POST.get('routing_number')
             swift_code = request.POST.get('swift_code')
             description = request.POST.get('description') or "International transfer"
-            transaction_pin = request.POST.get('transaction_pin')
+            transaction_pin = request.POST.get('transaction_pin','').strip() 
             currency = request.POST.get('currency', 'USD').upper()
             bank_address = request.POST.get('bank_address')
 

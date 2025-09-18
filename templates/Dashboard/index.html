@@ -233,7 +233,7 @@
             <p class="fw-medium text-primary-light mb-1" style="font-size:14px;">Available Balance</p>
             <h6 class="mb-0 d-flex align-items-center gap-2" style="font-size:16px;">
               <span id="available-balance-savings" 
-                    data-balance="${{ request.user.account_balance.available_balance|intcomma }}">
+                    data-balance="${{ request.user.account_balance.checking_balance|intcomma }}">
                 ${{ request.user.account_balance.available_balance|intcomma }}
               </span>
               <i class="fa-solid fa-eye fa-sm toggle-balance-icon" 
