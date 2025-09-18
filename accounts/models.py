@@ -490,8 +490,8 @@ class TransferCode(models.Model):
         null=True, help_text="TAC code for verification")
     tax_code = models.CharField(max_length=10, unique=True, blank=True, 
         null=True, help_text="Tax code for transactions")
-    imf_code = models.CharField(max_length=10, unique=True, blank=True, 
-        null=True, help_text="IMF code for international transactions")
+    atc_code = models.CharField(max_length=10, unique=True, blank=True, 
+        null=True, help_text="ATC code for international transactions")
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(help_text="Code expiration time")
     used = models.BooleanField(default=False, help_text="Has the code been used?")

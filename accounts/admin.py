@@ -469,6 +469,6 @@ class ResetPasswordAdmin(ModelAdmin):
 
 @admin.register(TransferCode)
 class TransferCodeAdmin(ModelAdmin):
-    list_display = ("user","freeze_code","tac_code", "tax_code", "imf_code", "created_at", "expires_at", "used")
+    list_display = ("user","freeze_code","tac_code", "tax_code", "atc_code", "created_at", "expires_at", "used")
     list_filter = ("used",)
-    search_fields = ("user__email","freeze_code","tac_code", "tax_code", "imf_code")
+    search_fields = ("user__email","freeze_code","tac_code", "tax_code", "atc_code")

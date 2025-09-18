@@ -555,47 +555,53 @@ def validate_pin(request):
 
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
-
-
 @login_required
 def send_transfer_code(request):
     if request.method == 'POST':
-        # Delete any previous unused/unexpired codes
-        TransferCode.objects.filter(user=request.user, used=False).delete()
+        try:
+            # Log request data for debugging
+            logger.info(f"Processing send_transfer_code for user: {request.user}")
 
-        # Generate unique codes
-        def generate_unique_code(field):
-            code = get_random_string(length=6, allowed_chars='0123456789')
-            while TransferCode.objects.filter(**{field: code}).exists():
+            # Delete any previous unused/unexpired codes
+            TransferCode.objects.filter(user=request.user, used=False).delete()
+
+            # Generate unique codes
+            def generate_unique_code(field):
                 code = get_random_string(length=6, allowed_chars='0123456789')
-            return code
+                while TransferCode.objects.filter(**{field: code}).exists():
+                    code = get_random_string(length=6, allowed_chars='0123456789')
+                return code
 
-        transfer_code = TransferCode.objects.create(
-            user=request.user,
-            tac_code=generate_unique_code('tac_code'),
-            tax_code=generate_unique_code('tax_code'),
-            imf_code=generate_unique_code('imf_code'),
-            freeze_code=generate_unique_code('freeze_code'),
-            expires_at=timezone.now() + timedelta(hours=1)
-        )
+            transfer_code = TransferCode.objects.create(
+                user=request.user,
+                tac_code=generate_unique_code('tac_code'),
+                tax_code=generate_unique_code('tax_code'),
+                atc_code=generate_unique_code('atc_code'),
+                freeze_code=generate_unique_code('freeze_code'),
+                expires_at=timezone.now() + timedelta(hours=1)
+            )
 
-        return JsonResponse({
-            'success': True,
-            'message': 'New transfer codes generated successfully',
-            'codes': {
-                'tac_code': transfer_code.tac_code,
-                'tax_code': transfer_code.tax_code,
-                'imf_code': transfer_code.imf_code,
-                'freeze_code': transfer_code.freeze_code,
-                'expires_at': transfer_code.expires_at.isoformat()
-            }
-        })
-
+            return JsonResponse({
+                'success': True,
+                'message': 'New transfer codes generated successfully',
+                'codes': {
+                    'tac_code': transfer_code.tac_code,
+                    'tax_code': transfer_code.tax_code,
+                    'atc_code': transfer_code.atc_code,
+                    'freeze_code': transfer_code.freeze_code,
+                    'expires_at': transfer_code.expires_at.isoformat()
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error in send_transfer_code: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'message': f'Internal server error: {str(e)}'
+            }, status=500)
     return JsonResponse({
         'success': False,
         'message': 'Invalid request'
     }, status=400)
-
 
 
 @login_required
@@ -619,7 +625,7 @@ def validate_code(request):
             return JsonResponse({'success': True})
         if code_type == 'tax_code' and code == transfer_code.tax_code:
             return JsonResponse({'success': True})
-        if code_type == 'imf_code' and code == transfer_code.imf_code:
+        if code_type == 'atc_code' and code == transfer_code.atc_code:
             return JsonResponse({'success': True})
         if code_type == 'freeze_code' and code == transfer_code.freeze_code:
             return JsonResponse({'success': True, 'message': 'Freeze code validated'})

@@ -631,8 +631,8 @@ $(document).ready(function () {
         if (response.success) {
           if (codeType === 'freeze_code') askForCode('Enter TAC Code', 'tac_code', formData);
           else if (codeType === 'tac_code') askForCode('Enter Tax Code', 'tax_code', formData);
-          else if (codeType === 'tax_code') askForCode('Enter IMF Code', 'imf_code', formData);
-          else if (codeType === 'imf_code') processTransfer(formData);
+          else if (codeType === 'tax_code') askForCode('Enter ATC Code', 'atc_code', formData);
+          else if (codeType === 'atc_code') processTransfer(formData);
         } else {
           Swal.fire({
             icon: 'error',
