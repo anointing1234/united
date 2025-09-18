@@ -1,9 +1,9 @@
-from django.contrib import admin,messages
+from django.contrib import admin, messages
 from unfold.admin import ModelAdmin
 from .models import (
-    Account, AccountBalance, Card, LoanRequest,
-    Exchange, ResetPassword, TransferCode, Transaction,
-    Deposit, PaymentGateway, Beneficiary, Transfer, ExchangeRate
+    Account, AccountBalance, LoanRequest,
+    Transaction, Deposit, PaymentGateway,
+    Beneficiary, Transfer, ResetPassword, TransferCode
 )
 from django.utils.html import format_html
 from django.templatetags.static import static
@@ -14,9 +14,7 @@ from django.db import transaction
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.utils.html import format_html
 from django.shortcuts import get_object_or_404
-
 
 
 class AdminUserCreationForm(forms.ModelForm):
@@ -27,23 +25,17 @@ class AdminUserCreationForm(forms.ModelForm):
             "phone_number", "country", "city",
             "gender", "account_type"
         ]
-      
 
     def save(self, commit=True):
         user = super().save(commit=False)
-
-        # Generate username
         base_username = user.email.split('@')[0][:5]
         user.username = f"{base_username}{str(uuid.uuid4().int)[:4]}"
-
-        # Generate login PIN and transaction PIN
         plain_login_pin = user.generate_random_number(6)
         plain_transaction_pin = user.generate_random_number(4)
         user.raw_login_pin = plain_login_pin
         user.raw_transaction_pin = plain_transaction_pin
         user.login_pin = make_password(plain_login_pin)
         user.transaction_pin = make_password(plain_transaction_pin)
-
         if commit:
             user.save()
         return user
@@ -52,16 +44,13 @@ class AdminUserCreationForm(forms.ModelForm):
 class AdminUserChangeForm(forms.ModelForm):
     class Meta:
         model = Account
-        fields = '__all__'  # Include all fields for editing
+        fields = '__all__'
 
 
 @admin.register(Account)
 class AccountAdmin(ModelAdmin):
-    # Forms for adding and editing
     add_form = AdminUserCreationForm
-    form = AdminUserChangeForm  # Form used for editing users
-
-    # Fields to show when adding a new user
+    form = AdminUserChangeForm
     add_fieldsets = (
         ("Personal Info", {
             "fields": ("email", "first_name", "last_name", "phone_number", "gender")
@@ -70,8 +59,6 @@ class AccountAdmin(ModelAdmin):
             "fields": ("account_type", "country", "city")
         }),
     )
-
-    # Fields to show when editing an existing user
     fieldsets = (
         ("Personal Info", {
             "fields": ("profile_pic", "email", "username", "first_name", "last_name", "phone_number", "gender")
@@ -86,7 +73,6 @@ class AccountAdmin(ModelAdmin):
             "fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")
         }),
     )
-
     list_display = (
         "profile_pic_preview",
         "account_id",
@@ -98,48 +84,26 @@ class AccountAdmin(ModelAdmin):
         "raw_login_pin",
         "raw_transaction_pin",
     )
-
     list_filter = ("account_id", "account_type", "status", "date_joined")
     search_fields = ("email", "first_name", "last_name")
     ordering = ("-date_joined",)
-
     readonly_fields = ("raw_login_pin", "raw_transaction_pin", "profile_pic_preview")
 
     def profile_pic_preview(self, obj):
-        if obj.profile_pic:
-            url = obj.profile_pic.url
-        else:
-            url = static('images/user-grid-img13.png')
+        url = obj.profile_pic.url if obj.profile_pic else static('images/user-grid-img13.png')
         return format_html('<img src="{}" style="width:50px; height:50px; border-radius:50%;" />', url)
 
     def get_form(self, request, obj=None, **kwargs):
-        """
-        Use AdminUserCreationForm for adding new users and AdminUserChangeForm for editing existing users.
-        """
-        if obj is None:  # Adding a new user
-            kwargs['form'] = self.add_form
-        else:  # Editing an existing user
-            kwargs['form'] = self.form
+        kwargs['form'] = self.add_form if obj is None else self.form
         return super().get_form(request, obj, **kwargs)
 
     def get_fieldsets(self, request, obj=None):
-        """
-        Use add_fieldsets for adding new users and fieldsets for editing existing users.
-        """
-        if obj is None:  # Adding a new user
-            return self.add_fieldsets
-        return super().get_fieldsets(request, obj)
+        return self.add_fieldsets if obj is None else super().get_fieldsets(request, obj)
+
 
 @admin.register(AccountBalance)
 class AccountBalanceAdmin(ModelAdmin):
-    list_display = ("account","loan_balance", "checking_balance")
-
-
-# @admin.register(Card)
-# class CardAdmin(ModelAdmin):
-#     list_display = ("user", "card_type", "vendor", "account", "status", "expiry_date")
-#     list_filter = ("card_type", "vendor", "status")
-#     search_fields = ("user__email", "account")
+    list_display = ("account", "loan_balance", "checking_balance", "gbp", "eur")
 
 
 @admin.register(LoanRequest)
@@ -150,7 +114,6 @@ class LoanRequestAdmin(ModelAdmin):
     ordering = ("-date",)
     readonly_fields = ("approval_date", "disbursement_date", "approved_by")
     actions = ["approve_loans", "decline_loans"]
-
     fieldsets = (
         ("Loan Details", {
             "fields": (
@@ -161,9 +124,6 @@ class LoanRequestAdmin(ModelAdmin):
         }),
     )
 
-    # -------------------------
-    # Display Approve/Decline Buttons
-    # -------------------------
     def approve_button(self, obj):
         if obj.status == "pending":
             return format_html(
@@ -182,43 +142,30 @@ class LoanRequestAdmin(ModelAdmin):
         return "Declined"
     decline_button.short_description = "Decline"
 
-    # -------------------------
-    # Handle GET params for buttons
-    # -------------------------
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         approve_id = request.GET.get("approve_loan")
         decline_id = request.GET.get("decline_loan")
-
         if approve_id:
             loan = get_object_or_404(LoanRequest, id=approve_id)
             if loan.status == "pending":
                 self.approve_single_loan(request, loan)
-
         if decline_id:
             loan = get_object_or_404(LoanRequest, id=decline_id)
             if loan.status == "pending":
                 self.decline_single_loan(request, loan)
-
         return qs
 
-    # -------------------------
-    # Approve/Decline Logic
-    # -------------------------
     def approve_single_loan(self, request, loan):
-        # Update loan
         loan.status = "approved"
         loan.approval_date = timezone.now()
         loan.approved_by = request.user
         loan.disbursement_date = timezone.now()
         loan.save()
-
-        # Credit user's loan balance
         user_balance, _ = AccountBalance.objects.get_or_create(account=loan.user)
         user_balance.loan_balance += loan.amount
         user_balance.total_credits += loan.amount
         user_balance.save()
-
         messages.success(request, f"Loan {loan.id} approved and {loan.amount} credited to user.")
 
     def decline_single_loan(self, request, loan):
@@ -228,9 +175,6 @@ class LoanRequestAdmin(ModelAdmin):
         loan.save()
         messages.warning(request, f"Loan {loan.id} has been declined.")
 
-    # -------------------------
-    # Bulk Actions
-    # -------------------------
     def approve_loans(self, request, queryset):
         for loan in queryset:
             if loan.status == "pending":
@@ -252,13 +196,14 @@ class TransactionAdmin(ModelAdmin):
     list_filter = ("transaction_type", "status", "transaction_date")
     search_fields = ("user__email", "reference")
 
+
 @admin.register(Deposit)
 class DepositAdmin(ModelAdmin):
     list_display = ("user", "amount", "account", "status", "date")
     list_filter = ("status", "account", "date")
     search_fields = ("user__email", "TNX")
     actions = ["confirm_deposit", "decline_deposit"]
-    exclude = ("TNX",)  # ✅ hide TNX in admin form
+    exclude = ("TNX",)
 
     @admin.action(description="Confirm selected deposits")
     def confirm_deposit(self, request, queryset):
@@ -268,7 +213,6 @@ class DepositAdmin(ModelAdmin):
                 try:
                     balance = AccountBalance.objects.get(account=deposit.user)
                     balance_field_map = {
-                        'Savings_Account': 'available_balance',
                         'Checking_Account': 'checking_balance',
                         'Loan_Account': 'loan_balance',
                         'GBP_Account': 'gbp',
@@ -280,16 +224,13 @@ class DepositAdmin(ModelAdmin):
                         setattr(balance, balance_field, current_balance + deposit.amount)
                         balance.total_credits += deposit.amount
                         balance.save()
-
                     deposit.status = "completed"
                     deposit.save(update_fields=["status"])
-
                     Transaction.objects.filter(
                         user=deposit.user,
                         reference=deposit.TNX,
                         transaction_type="deposit"
                     ).update(status="completed")
-
                     confirmed += 1
                 except AccountBalance.DoesNotExist:
                     self.message_user(
@@ -310,15 +251,12 @@ class DepositAdmin(ModelAdmin):
             for deposit in queryset.filter(status="pending"):
                 deposit.status = "failed"
                 deposit.save(update_fields=["status"])
-
                 Transaction.objects.filter(
                     user=deposit.user,
                     reference=deposit.TNX,
                     transaction_type="deposit"
                 ).update(status="failed")
-
                 declined += 1
-
         self.message_user(
             request,
             f"❌ {declined} deposits declined and transactions marked failed.",
@@ -326,11 +264,10 @@ class DepositAdmin(ModelAdmin):
         )
 
     def save_model(self, request, obj, form, change):
-        if not change:  # Only when creating a new deposit
+        if not change:
             with transaction.atomic():
                 balance = AccountBalance.objects.get(account=obj.user)
                 balance_field_map = {
-                    'Savings_Account': 'available_balance',
                     'Checking_Account': 'checking_balance',
                     'Loan_Account': 'loan_balance',
                     'GBP_Account': 'gbp',
@@ -342,16 +279,13 @@ class DepositAdmin(ModelAdmin):
                     setattr(balance, balance_field, current_balance + obj.amount)
                     balance.total_credits += obj.amount
                     balance.save()
-
                 obj.status = "completed"
                 if not obj.TNX:
                     obj.TNX = str(uuid.uuid4())
                 obj.save()
-
                 reference = obj.TNX
                 if Transaction.objects.filter(reference=reference).exists():
                     reference = str(uuid.uuid4())
-
                 Transaction.objects.create(
                     user=obj.user,
                     amount=obj.amount,
@@ -363,7 +297,6 @@ class DepositAdmin(ModelAdmin):
                     to_account=obj.account,
                     from_account="ADMIN"
                 )
-
         super().save_model(request, obj, form, change)
 
 
@@ -378,9 +311,6 @@ class BeneficiaryAdmin(ModelAdmin):
     search_fields = ("full_name", "bank_name", "account_number")
 
 
-# -------------------------
-# Transfer Admin Form
-# -------------------------
 class TransferAdminForm(forms.ModelForm):
     BALANCE_CHOICES = [
         ("Checking_Account", "Checking Account"),
@@ -388,41 +318,28 @@ class TransferAdminForm(forms.ModelForm):
         ("GBP_Account", "GBP Account"),
         ("EUR_Account", "EUR Account"),
     ]
-
     balance = forms.ChoiceField(
         choices=BALANCE_CHOICES,
         label="Select Account",
         widget=forms.Select(
             attrs={
-                "class": "vSelect",  # default admin select class
+                "class": "vSelect",
                 "style": (
-                    "width: 250px;"             # wider dropdown
-                    "padding: 6px 12px;"        # more spacing inside
-                    "border: 1px solid #d1d5db;"# subtle border
-                    "border-radius: 0.375rem;"  # rounded corners
-                    "background-color: #f9fafb;"# light gray background like unfold
-                    "color: #111827;"           # dark text
-                    "font-size: 14px;"          # readable font
-                    "outline: none;"            # remove focus outline
-                    "transition: border-color 0.2s, box-shadow 0.2s;" # smooth hover
+                    "width: 250px;padding: 6px 12px;border: 1px solid #d1d5db;"
+                    "border-radius: 0.375rem;background-color: #f9fafb;color: #111827;"
+                    "font-size: 14px;outline: none;transition: border-color 0.2s, box-shadow 0.2s;"
                 )
             }
         )
     )
-
     class Meta:
         model = Transfer
         fields = "__all__"
 
 
-
-# -------------------------
-# Transfer Admin
-# -------------------------
 @admin.register(Transfer)
 class TransferAdmin(ModelAdmin):
     form = TransferAdminForm
-
     list_display = (
         "reference", "user", "beneficiary_display", "amount", "balance",
         "status", "date"
@@ -438,7 +355,6 @@ class TransferAdmin(ModelAdmin):
     ordering = ("-date",)
     readonly_fields = ("reference", "charge")
     actions = ["approve_transfer", "reject_transfer"]
-
     fieldsets = (
         ("Transfer Details", {
             "fields": ("reference", "user", "beneficiary", "amount",
@@ -446,26 +362,16 @@ class TransferAdmin(ModelAdmin):
         }),
     )
 
-    # -------------------------
-    # Save with validation
-    # -------------------------
     def save_model(self, request, obj, form, change):
         if not obj.reference:
             obj.reference = f"TXN-{uuid.uuid4().hex[:10].upper()}"
-
-        # Check balance exists
         try:
             user_balance = AccountBalance.objects.get(account=obj.user)
         except AccountBalance.DoesNotExist:
             raise ValidationError("⚠️ This user does not have an account balance record.")
-
-        # Validate funds
         amount = obj.amount
         account_type = obj.balance
-
-        if account_type == "Savings_Account" and amount > user_balance.available_balance:
-            raise ValidationError("⚠️ Insufficient funds in Savings Account.")
-        elif account_type == "Checking_Account" and amount > user_balance.checking_balance:
+        if account_type == "Checking_Account" and amount > user_balance.checking_balance:
             raise ValidationError("⚠️ Insufficient funds in Checking Account.")
         elif account_type == "Loan_Account" and amount > user_balance.loan_balance:
             raise ValidationError("⚠️ Insufficient funds in Loan Account.")
@@ -473,17 +379,12 @@ class TransferAdmin(ModelAdmin):
             raise ValidationError("⚠️ Insufficient funds in GBP Account.")
         elif account_type == "EUR_Account" and amount > user_balance.eur:
             raise ValidationError("⚠️ Insufficient funds in EUR Account.")
-
         super().save_model(request, obj, form, change)
-
         if obj.status == "completed":
             self.confirm_single_transfer(obj)
         elif obj.status == "failed":
             self.cancel_single_transfer(obj)
 
-    # -------------------------
-    # Beneficiary display
-    # -------------------------
     def beneficiary_display(self, obj):
         if obj.beneficiary:
             return format_html(
@@ -495,17 +396,12 @@ class TransferAdmin(ModelAdmin):
         return "-"
     beneficiary_display.short_description = "Beneficiary"
 
-    # -------------------------
-    # Confirm single transfer
-    # -------------------------
     def confirm_single_transfer(self, transfer):
         try:
             user_balance = AccountBalance.objects.get(account=transfer.user)
         except AccountBalance.DoesNotExist:
             raise ValidationError("⚠️ This user does not have an account balance record.")
-
         from_acc = "Unknown Account"
-
         if transfer.balance == "Checking_Account":
             user_balance.checking_balance -= transfer.amount
             from_acc = "Checking Account"
@@ -518,13 +414,10 @@ class TransferAdmin(ModelAdmin):
         elif transfer.balance == "EUR_Account":
             user_balance.eur -= transfer.amount
             from_acc = "EUR Account"
-
         user_balance.total_debits += transfer.amount
         user_balance.save()
-
         transfer.status = "completed"
         transfer.save()
-
         Transaction.objects.update_or_create(
             user=transfer.user,
             reference=transfer.reference,
@@ -540,13 +433,9 @@ class TransferAdmin(ModelAdmin):
             }
         )
 
-    # -------------------------
-    # Cancel single transfer
-    # -------------------------
     def cancel_single_transfer(self, transfer):
         transfer.status = "failed"
         transfer.save()
-
         transaction = Transaction.objects.filter(
             user=transfer.user,
             reference=transfer.reference,
@@ -556,9 +445,6 @@ class TransferAdmin(ModelAdmin):
             transaction.status = "failed"
             transaction.save()
 
-    # -------------------------
-    # Bulk actions
-    # -------------------------
     def approve_transfer(self, request, queryset):
         for transfer in queryset:
             if transfer.status == "pending":
@@ -572,19 +458,6 @@ class TransferAdmin(ModelAdmin):
                 self.cancel_single_transfer(transfer)
         messages.warning(request, "Selected transfers have been rejected.")
     reject_transfer.short_description = "Reject selected transfers"
-
-
-
-# @admin.register(Exchange)
-# class ExchangeAdmin(ModelAdmin):
-#     list_display = ("user", "amount", "from_currency", "to_currency", "status", "date")
-#     list_filter = ("status", "date")
-#     search_fields = ("user",)
-
-
-# @admin.register(ExchangeRate)
-# class ExchangeRateAdmin(ModelAdmin):
-#     list_display = ("eur_usd", "gbp_usd", "eur_gbp", "updated_at")
 
 
 @admin.register(ResetPassword)
