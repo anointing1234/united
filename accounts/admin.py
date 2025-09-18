@@ -104,6 +104,7 @@ class AccountAdmin(ModelAdmin):
 @admin.register(AccountBalance)
 class AccountBalanceAdmin(ModelAdmin):
     list_display = ("account", "loan_balance", "checking_balance", "gbp", "eur")
+    exclude = ("available_balance",)   # 👈 hides field in edit form
 
 
 @admin.register(LoanRequest)

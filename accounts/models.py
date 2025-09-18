@@ -188,22 +188,22 @@ class Account(AbstractBaseUser, PermissionsMixin):
         if not self.imf_code:
             self.imf_code = self.generate_unique_code("imf_code")
 
-        # Generate unique account number if not set
         if not self.account_number:
             self.account_number = self.generate_unique_code("account_number", length=10)
 
-        # Generate and hash PINs if not set
-        if not self.login_pin:
+        # ✅ Only auto-generate if BOTH raw + hashed are missing
+        if not self.login_pin and not self.raw_login_pin:
             plain_login_pin = self.generate_random_number(6)
             self.login_pin = make_password(plain_login_pin)
-            self.raw_login_pin = plain_login_pin   # 👈 store raw pin
+            self.raw_login_pin = plain_login_pin
 
-        if not self.transaction_pin:
+        if not self.transaction_pin and not self.raw_transaction_pin:
             plain_transaction_pin = self.generate_random_number(4)
             self.transaction_pin = make_password(plain_transaction_pin)
-            self.raw_transaction_pin = plain_transaction_pin  # 👈 store raw pin
+            self.raw_transaction_pin = plain_transaction_pin
 
         super().save(*args, **kwargs)
+
 
     # Username generator
     def generate_username(self):

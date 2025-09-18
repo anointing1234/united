@@ -531,14 +531,28 @@ def transaction_receipt_view(request, reference):
    
 
 
+
 @login_required
 def validate_pin(request):
     if request.method == 'POST':
-        pin = request.POST.get('pin')  # <-- should match the AJAX field
+        pin = request.POST.get('pin','').strip() 
         user = request.user
-        if user.check_transaction_pin(pin):
+
+        # Debug logs
+        print("----- PIN VALIDATION DEBUG -----")
+        print(f"User inputed pin: {pin}")
+        print(f"User raw_transaction_pin (from DB): {user.raw_transaction_pin}")
+        print(f"User hashed transaction_pin (from DB): {user.transaction_pin}")
+
+        # Run check
+        is_valid = user.check_transaction_pin(pin)
+        print(f"check_transaction_pin result: {is_valid}")
+        print("--------------------------------")
+
+        if is_valid:
             return JsonResponse({'success': True})
         return JsonResponse({'success': False, 'message': 'Invalid PIN'}, status=400)
+
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 
