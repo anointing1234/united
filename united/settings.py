@@ -51,6 +51,7 @@ CSRF_TRUSTED_ORIGINS = ["https://bnunited.com"]
 ALLOWED_HOSTS = ["bnunited.com","www.bnunited.com"]
 
 
+
 # # Application definition
 AUTH_USER_MODEL = 'accounts.Account'
 

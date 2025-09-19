@@ -562,7 +562,7 @@ $(document).ready(function () {
       success: function(response) {
         Swal.close();
         if (response.success) {
-          askForCode('Enter Freeze Code', 'freeze_code', formData);
+          askForCode('Enter Account Freeze Code', 'freeze_code', formData);
         } else {
           Swal.fire({ 
             icon: 'error', 
